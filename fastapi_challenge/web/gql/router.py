@@ -1,7 +1,7 @@
 import strawberry
 from strawberry.fastapi import GraphQLRouter
 
-from fastapi_challenge.web.gql import dummy, echo
+from fastapi_challenge.web.gql import dummy, echo,posts,users,comments
 from fastapi_challenge.web.gql.context import Context, get_context
 
 
@@ -9,6 +9,9 @@ from fastapi_challenge.web.gql.context import Context, get_context
 class Query(
     echo.Query,
     dummy.Query,
+    posts.Query,
+    users.Query,
+    comments.Query
 ):
     """Main query."""
 
@@ -17,6 +20,9 @@ class Query(
 class Mutation(
     echo.Mutation,
     dummy.Mutation,
+    posts.Mutation,
+    users.Mutation,
+    comments.Mutation,
 ):
     """Main mutation."""
 
