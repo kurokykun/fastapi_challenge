@@ -1,13 +1,15 @@
 import uuid
 
-from sqlalchemy import Column, DateTime, ForeignKey, Text, func
+from sqlalchemy import Column, ForeignKey, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 
 from fastapi_challenge.db.base import Base
+from fastapi_challenge.db.models.mixins.time_stamp_mixin import TimeStampMixin
+from fastapi_challenge.db.models.mixins.soft_delete_mixin import SoftDeleteMixin
 
 
-class Comment(Base):
+class Comment(TimeStampMixin, SoftDeleteMixin, Base):
     __tablename__ = "comments"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -20,11 +22,6 @@ class Comment(Base):
     post_id = Column(
         UUID(as_uuid=True),
         ForeignKey("posts.id", ondelete="CASCADE"),
-        nullable=False,
-    )
-    created_at = Column(
-        DateTime(timezone=True),
-        server_default=func.now(),
         nullable=False,
     )
 
