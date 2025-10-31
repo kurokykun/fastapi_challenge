@@ -1,0 +1,55 @@
+services:
+  api: &main_app
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    image: fastapi_challenge:${FASTAPI_CHALLENGE_VERSION:-latest}
+    restart: always
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      FASTAPI_CHALLENGE_HOST: 0.0.0.0
+      FASTAPI_CHALLENGE_DB_HOST: fastapi_challenge-db
+      FASTAPI_CHALLENGE_DB_PORT: 5432
+      FASTAPI_CHALLENGE_DB_USER: fastapi_challenge
+      FASTAPI_CHALLENGE_DB_PASS: fastapi_challenge
+      FASTAPI_CHALLENGE_DB_BASE: fastapi_challenge
+
+  db:
+    image: postgres:16.3-bullseye
+    hostname: fastapi_challenge-db
+    environment:
+      POSTGRES_PASSWORD: "fastapi_challenge"
+      POSTGRES_USER: "fastapi_challenge"
+      POSTGRES_DB: "fastapi_challenge"
+    volumes:
+      - fastapi_challenge-db-data:/var/lib/postgresql/data
+    restart: always
+    healthcheck:
+      test: pg_isready -U fastapi_challenge
+      interval: 2s
+      timeout: 3s
+      retries: 40
+
+  migrator:
+    image: fastapi_challenge:${FASTAPI_CHALLENGE_VERSION:-latest}
+    restart: "no"
+    command: alembic upgrade head
+    environment:
+      FASTAPI_CHALLENGE_DB_HOST: fastapi_challenge-db
+      FASTAPI_CHALLENGE_DB_PORT: 5432
+      FASTAPI_CHALLENGE_DB_USER: fastapi_challenge
+      FASTAPI_CHALLENGE_DB_PASS: fastapi_challenge
+      FASTAPI_CHALLENGE_DB_BASE: fastapi_challenge
+    depends_on:
+      db:
+        condition: service_healthy
+
+
+
+volumes:
+  fastapi_challenge-db-data:
+    name: fastapi_challenge-db-data
