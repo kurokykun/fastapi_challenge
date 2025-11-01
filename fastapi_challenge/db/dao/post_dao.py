@@ -17,11 +17,13 @@ class PostDAO:
         self.session.add(Post(title=title, content=content, author_id=author_id))
 
     async def get_all_posts(self, limit: int, offset: int) -> List[Post]:
-        raw = await self.session.execute(select(Post).limit(limit).offset(offset))
-        return list(raw.scalars().fetchall())
+        query = await self.session.execute(
+            select(Post).where(Post.is_deleted.is_(False)).limit(limit).offset(offset)
+        )
+        return list(query.scalars().fetchall())
 
     async def filter(self, title: Optional[str] = None, author_id: Optional[UUID] = None) -> List[Post]:
-        query = select(Post)
+        query = select(Post).where(Post.is_deleted.is_(False))
         if title:
             query = query.where(Post.title == title)
         if author_id:

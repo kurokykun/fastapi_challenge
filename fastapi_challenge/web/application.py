@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from fastapi_challenge.web.api.router import api_router
 from fastapi_challenge.web.lifespan import lifespan_setup
+from fastapi_challenge.web.middleware import setup_middlewares
 
 APP_ROOT = Path(__file__).parent.parent
 
@@ -29,6 +30,8 @@ def get_app() -> FastAPI:
         openapi_url="/api/openapi.json",
         default_response_class=UJSONResponse,
     )
+    
+    setup_middlewares(app)
 
     # Main router for the API.
     app.include_router(router=api_router, prefix="/api")

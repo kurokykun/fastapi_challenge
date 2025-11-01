@@ -17,11 +17,13 @@ class CommentDAO:
         self.session.add(Comment(content=content, post_id=post_id, author_id=author_id))
 
     async def get_all_comments(self, limit: int, offset: int) -> List[Comment]:
-        raw = await self.session.execute(select(Comment).limit(limit).offset(offset))
-        return list(raw.scalars().fetchall())
+        query = await self.session.execute(
+            select(Comment).where(Comment.is_deleted.is_(False)).limit(limit).offset(offset)
+        )
+        return list(query.scalars().fetchall())
 
     async def filter(self, post_id: Optional[UUID] = None, author_id: Optional[UUID] = None) -> List[Comment]:
-        query = select(Comment)
+        query = select(Comment).where(Comment.is_deleted.is_(False))
         if post_id:
             query = query.where(Comment.post_id == post_id)
         if author_id:

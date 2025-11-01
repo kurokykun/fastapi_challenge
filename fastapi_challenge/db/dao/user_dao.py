@@ -17,11 +17,18 @@ class UserDAO:
         self._password_helper = PasswordHelper()
 
     async def get_all_users(self, limit: int, offset: int) -> List[User]:
-        raw = await self.session.execute(select(User).limit(limit).offset(offset))
+        query = select(User)
+        is_deleted_col = getattr(User, "is_deleted", None)
+        if is_deleted_col is not None:
+            query = query.where(is_deleted_col.is_(False))
+        raw = await self.session.execute(query.limit(limit).offset(offset))
         return list(raw.scalars().fetchall())
 
     async def filter(self, email: Optional[str] = None, is_active: Optional[bool] = None) -> List[User]:
         query = select(User)
+        is_deleted_col = getattr(User, "is_deleted", None)
+        if is_deleted_col is not None:
+            query = query.where(is_deleted_col.is_(False))
         if email:
             query = query.where(User.email == email.lower())
         if is_active is not None:
