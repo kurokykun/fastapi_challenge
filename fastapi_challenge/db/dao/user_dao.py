@@ -3,15 +3,18 @@ from uuid import UUID
 
 from fastapi import Depends
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fastapi_challenge.db.dependencies import get_db_session
 from fastapi_challenge.db.models.users import User
+from fastapi_users.password import PasswordHelper
 
 
 class UserDAO:
     def __init__(self, session: AsyncSession = Depends(get_db_session)) -> None:
         self.session = session
+        self._password_helper = PasswordHelper()
 
     async def get_all_users(self, limit: int, offset: int) -> List[User]:
         raw = await self.session.execute(select(User).limit(limit).offset(offset))
@@ -20,7 +23,7 @@ class UserDAO:
     async def filter(self, email: Optional[str] = None, is_active: Optional[bool] = None) -> List[User]:
         query = select(User)
         if email:
-            query = query.where(User.email == email)
+            query = query.where(User.email == email.lower())
         if is_active is not None:
             query = query.where(User.is_active == is_active)
         rows = await self.session.execute(query)
@@ -31,8 +34,58 @@ class UserDAO:
         return row.scalars().first()
 
     async def get_by_email(self, email: str) -> Optional[User]:
-        row = await self.session.execute(select(User).where(User.email == email))
+        row = await self.session.execute(select(User).where(User.email == email.lower()))
         return row.scalars().first()
+
+    async def create_user(
+        self,
+        email: str,
+        password: str,
+        *,
+        is_active: bool = True,
+        is_superuser: bool = False,
+        is_verified: bool = False,
+    ) -> User:
+        if not email:
+            raise ValueError("Email is required")
+        if not password:
+            raise ValueError("Password is required")
+        normalized_email = email.lower()
+        hashed_password = self._password_helper.hash(password)
+        user = User(
+            email=normalized_email,
+            hashed_password=hashed_password,
+            is_active=is_active,
+            is_superuser=is_superuser,
+            is_verified=is_verified,
+        )
+        self.session.add(user)
+        try:
+            await self.session.flush()
+        except IntegrityError as exc:
+            raise ValueError("Email already registered") from exc
+        await self.session.refresh(user)
+        return user
+
+    async def authenticate_user(self, email: str, password: str) -> Optional[User]:
+        if not email or not password:
+            return None
+        row = await self.session.execute(select(User).where(User.email == email.lower()))
+        user = row.scalars().first()
+        if not user or not getattr(user, "is_active", False):
+            return None
+        if getattr(user, "is_deleted", False):
+            return None
+        verified, updated_hash = self._password_helper.verify_and_update(
+            password,
+            user.hashed_password,
+        )
+        if not verified:
+            return None
+        if updated_hash:
+            user.hashed_password = updated_hash
+            await self.session.flush()
+        return user
 
     async def update_user(
         self,
@@ -45,7 +98,7 @@ class UserDAO:
         if not user:
             return None
         if email is not None:
-            user.email = email
+            user.email = email.lower()
         if is_active is not None:
             user.is_active = is_active
         await self.session.flush()

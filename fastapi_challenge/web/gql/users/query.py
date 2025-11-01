@@ -5,12 +5,13 @@ from strawberry.types import Info
 
 from fastapi_challenge.db.dao.user_dao import UserDAO
 from fastapi_challenge.web.gql.context import Context
+from fastapi_challenge.web.gql.permissions import IsAuthenticated
 from fastapi_challenge.web.gql.users.schema import UserDTO
 
 
 @strawberry.type
 class Query:
-    @strawberry.field()
+    @strawberry.field(permission_classes=[IsAuthenticated])
     async def get_users(
         self,
         info: Info[Context, None],
